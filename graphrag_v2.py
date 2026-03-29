@@ -225,12 +225,17 @@ class GraphRAG_v2:
         start_time = time.time()
         
         # Computar en batch para eficiencia
-        self.embeddings = self.model.encode(
+        embeddings = self.model.encode(
             self.entity_texts,
             batch_size=32,
-            show_progress_bar=True,
-            convert_to_numpy=True
+            show_progress_bar=True
         )
+        
+        # Convertir a numpy si es necesario
+        if not isinstance(embeddings, np.ndarray):
+            embeddings = np.array(embeddings)
+        
+        self.embeddings = embeddings
         
         elapsed = time.time() - start_time
         print(f"   ✅ Embeddings generados en {elapsed:.2f}s")
@@ -248,7 +253,16 @@ class GraphRAG_v2:
             Lista de (entity_id, score) ordenada por relevancia
         """
         # Generar embedding de la query
-        query_embedding = self.model.encode([query], convert_to_numpy=True)
+        # Versión simple compatible con sentence-transformers 5.2.2
+        query_text = str(query)
+        
+        # Encode simple - retorna numpy array
+        embedding_result = self.model.encode([query_text])
+        
+        # Asegurar formato numpy (1, 384)
+        query_embedding = np.asarray(embedding_result)
+        if len(query_embedding.shape) == 1:
+            query_embedding = query_embedding.reshape(1, -1)
         
         # Calcular similitud coseno
         similarities = cosine_similarity(query_embedding, self.embeddings)[0]
